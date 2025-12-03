@@ -37,7 +37,9 @@ model.load_state_dict(torch.load("model_weights/resnet_model.pth",  map_location
 model.to(device)
 model.eval()
 
-old_pred = None
+last_idx = 0
+old_probs = None
+cutoff_freq = 0.8
 classes = ["0", "1", "2", "3", "4", "5", "metal", "tel"]
 # -----------------------
 
@@ -160,16 +162,28 @@ while True:
     mask_hand = mask_hand.unsqueeze(0).unsqueeze(0) 
 
     with torch.no_grad():
+
         x = mask_hand.to(device)
-        outputs = model(x)
-        preds = outputs.argmax(dim=1)[0].item()
+        outputs = model(x)                # shape (1, num_classes)
 
-        # top2_probs, top2_indices = torch.topk(outputs, 2, dim=1)  # retourne les 2 plus grandes valeurs
-        # preds = top2_indices[:, 1].item()  # colonne 1 = deuxième plus grande
+        probs = torch.softmax(outputs, dim=1)   # (1, C)
 
-        if preds != old_pred :
-            print(classes[preds])
-            old_pred = preds
+        # Exponential Moving Average sur TOUTES les classes
+        if old_probs is None:
+            smooth_probs = probs
+        else:
+            smooth_probs = cutoff_freq * probs + (1 - cutoff_freq) * old_probs
+
+        # Classe finale
+        final_prob, final_idx = smooth_probs.max(dim=1)
+
+        # Sauvegarde pour la prochaine itération
+        old_probs = smooth_probs.detach()
+
+
+        if(last_idx != final_idx.item()):
+            last_idx = final_idx.item()
+            print(classes[last_idx])
 
     # Action pour quitter
     if cv2.waitKey(1) & 0xFF == 27:
