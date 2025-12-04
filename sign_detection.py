@@ -8,6 +8,8 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 
+classes = ["0", "1", "2", "3", "4", "5", "metal", "tel"]
+
 # --- Initialisation de la caméra ---
 cap = cv2.VideoCapture(0)  # 0 = webcam par défaut
 
@@ -125,8 +127,8 @@ while True:
     for_model = torch.from_numpy(for_model).to(dtype=torch.float32) / 255.0
     for_model = for_model.unsqueeze(0).unsqueeze(0) 
 
-    predicted_class = model_definition.predict_class(for_model)
-    predicted_class = "class detected : " + predicted_class
+    predicted_class_idx = model_definition.predict_class(for_model)
+    predicted_class = "class detected : " + classes[predicted_class_idx]
 
     cv2.putText(
         mask_hand,                   

@@ -1,6 +1,3 @@
-import numpy as np
-import os
-
 import torch
 import torch.nn as nn
 import torchvision.models as models
@@ -36,7 +33,6 @@ model.eval()
 last_idx = 0
 old_probs = None
 cutoff_freq = 0.8
-classes = ["0", "1", "2", "3", "4", "5", "metal", "tel"]
 
 
 def predict_class(mask_hand) :
@@ -65,6 +61,6 @@ def predict_class(mask_hand) :
         if(last_idx != final_idx.item()):
             last_idx = final_idx.item()
 
-        return classes[last_idx]
+        return last_idx
 
 
