@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
-import os
+
+
+import model_definition
 
 import torch
 import torch.nn as nn
@@ -8,41 +10,6 @@ import torchvision.models as models
 
 # --- Initialisation de la caméra ---
 cap = cv2.VideoCapture(0)  # 0 = webcam par défaut
-
-
-
-# --- CHARGEMENT DU MODEL
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-class ResNet1Chan(nn.Module):
-    def __init__(self, num_classes=8):
-        super().__init__()
-
-        self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-
-        # Adapter à 1 canal
-        self.model.conv1 = nn.Conv2d(
-            1, 64, kernel_size=7, stride=2, padding=3, bias=False
-        )
-
-        self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
-
-    def forward(self, x):
-        return self.model(x)
-
-
-
-model = ResNet1Chan()
-model.load_state_dict(torch.load("model_weights/resnet_model.pth",  map_location=torch.device('cpu')))
-model.to(device)
-model.eval()
-
-last_idx = 0
-old_probs = None
-cutoff_freq = 0.8
-classes = ["0", "1", "2", "3", "4", "5", "metal", "tel"]
-# -----------------------
-
 
 
 if not cap.isOpened():
@@ -120,7 +87,6 @@ while True:
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     result = frame.copy()
-    result_only_hand = frame.copy()
     mask_hand = np.zeros_like(frame, dtype=np.uint8)
 
     if len(contours) > 0:
@@ -129,25 +95,23 @@ while True:
         max_contour = max(contours, key=cv2.contourArea)                        
         if cv2.contourArea(max_contour) > 5000:             # on evite de recuperer d'utiliser le contour si est trop petit (ce n'est surement pas une main)
 
-            # initalisation d'un masque sur les dimension de la frame
-            mask_hand = np.zeros_like(frame, dtype=np.uint8)
+            x, y, w, h = cv2.boundingRect(max_contour)
 
+            # Calcul des centres
+            cx_frame, cy_frame = frame.shape[1] // 2, frame.shape[0] // 2
+            cx_hand,  cy_hand  = x + w // 2,       y + h // 2
 
-            # # Optionnel : dessine les contours
-            #cv2.drawContours(result, [max_contour], -1, (0, 255, 0), 2)
+            # valeurs de translation pour centrer le resultats
+            dx, dy = cx_frame - cx_hand, cy_frame - cy_hand
+
+            # translation
+            translated_contour = max_contour + np.array([dx, dy], dtype=np.int32)
+
 
             # utilisation d'openCV pour dessiner les contours remplit sur le masque initalise plus tot
-            cv2.drawContours(mask_hand, [max_contour], -1, (255, 255, 255), thickness=cv2.FILLED)
+            cv2.drawContours(mask_hand, [translated_contour], -1, (255, 255, 255), thickness=cv2.FILLED)
 
-            
-            # Appliquer le masque : tout ce qui n’est pas dans la main devient noir
-            # La main est gardé en couleur
-            #result_only_hand = cv2.bitwise_and(frame, mask_hand)
-            # result_only_hand = cv2.cvtColor(result_only_hand, cv2.COLOR_BGR2)
 
-            # # Optionnel : dessiner un rectangle englobant
-            x, y, w, h = cv2.boundingRect(max_contour)
-            cv2.rectangle(result, (x, y), (x+w, y+h), (255, 0, 0), 2)
 
 
     # Affichage du resultat
@@ -161,29 +125,9 @@ while True:
     mask_hand = torch.from_numpy(mask_hand).to(dtype=torch.float32) / 255.0
     mask_hand = mask_hand.unsqueeze(0).unsqueeze(0) 
 
-    with torch.no_grad():
 
-        x = mask_hand.to(device)
-        outputs = model(x)                # shape (1, num_classes)
-
-        probs = torch.softmax(outputs, dim=1)   # (1, C)
-
-        # Exponential Moving Average sur TOUTES les classes
-        if old_probs is None:
-            smooth_probs = probs
-        else:
-            smooth_probs = cutoff_freq * probs + (1 - cutoff_freq) * old_probs
-
-        # Classe finale
-        final_prob, final_idx = smooth_probs.max(dim=1)
-
-        # Sauvegarde pour la prochaine itération
-        old_probs = smooth_probs.detach()
-
-
-        if(last_idx != final_idx.item()):
-            last_idx = final_idx.item()
-            print(classes[last_idx])
+    predicted_class = model_definition.predict_class(mask_hand)
+    print(predicted_class)
 
     # Action pour quitter
     if cv2.waitKey(1) & 0xFF == 27:
