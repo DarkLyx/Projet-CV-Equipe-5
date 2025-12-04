@@ -25,6 +25,12 @@ while True:
         print("Erreur de lecture de la frame.")
         break
 
+    # Action pour quitter
+    if cv2.waitKey(1) & 0xFF == 27:
+        break
+
+
+
     frame = cv2.resize(frame, (640, 480))
 
 
@@ -114,24 +120,30 @@ while True:
 
 
 
-    # Affichage du resultat
-    #cv2.imshow("Flux camera", frame)
-    #cv2.imshow("Toutes les surfaces de peau", mask)
+    for_model = cv2.cvtColor(mask_hand, cv2.COLOR_BGR2GRAY)
+    for_model = cv2.resize(for_model, (224, 224))
+    for_model = torch.from_numpy(for_model).to(dtype=torch.float32) / 255.0
+    for_model = for_model.unsqueeze(0).unsqueeze(0) 
+
+    predicted_class = model_definition.predict_class(for_model)
+    predicted_class = "class detected : " + predicted_class
+
+    cv2.putText(
+        mask_hand,                   
+        predicted_class,             
+        (50, 50),                  
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1.0,                     
+        (0, 255, 0),         
+        2,                       
+        cv2.LINE_AA              
+    )
+
+
+    #PRESENTATION DES RESULTATS
     cv2.imshow("Main isolee en couleur", result)
     cv2.imshow("Main isolee en noir et blanc", mask_hand)
 
-    mask_hand = cv2.cvtColor(mask_hand, cv2.COLOR_BGR2GRAY)
-    mask_hand = cv2.resize(mask_hand, (224, 224))
-    mask_hand = torch.from_numpy(mask_hand).to(dtype=torch.float32) / 255.0
-    mask_hand = mask_hand.unsqueeze(0).unsqueeze(0) 
-
-
-    predicted_class = model_definition.predict_class(mask_hand)
-    print(predicted_class)
-
-    # Action pour quitter
-    if cv2.waitKey(1) & 0xFF == 27:
-        break
 
 # libere la memoire et ferme les fenetres
 cap.release()
