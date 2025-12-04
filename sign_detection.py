@@ -118,10 +118,10 @@ while True:
     #cv2.imshow("Flux camera", frame)
     #cv2.imshow("Toutes les surfaces de peau", mask)
     cv2.imshow("Main isolee en couleur", result)
+    cv2.imshow("Main isolee en noir et blanc", mask_hand)
 
     mask_hand = cv2.cvtColor(mask_hand, cv2.COLOR_BGR2GRAY)
     mask_hand = cv2.resize(mask_hand, (224, 224))
-    cv2.imshow("Main isolee en noir et blanc", mask_hand)
     mask_hand = torch.from_numpy(mask_hand).to(dtype=torch.float32) / 255.0
     mask_hand = mask_hand.unsqueeze(0).unsqueeze(0) 
 
