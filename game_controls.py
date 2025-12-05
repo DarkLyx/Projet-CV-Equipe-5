@@ -18,7 +18,7 @@ class SubwayController:
             7: Key.space      # Classe "tel" -> hoverboard
         }
         
-        self.CLASS_NAMES = ["Neutre", "gauche", "droite", "base", "Neutre", "haut", "pause", "hoverboard"]
+        self.CLASS_NAMES = ["Neutre", "gauche", "droite", "bas", "Neutre", "haut", "pause", "hoverboard"]
 
     def execute(self, class_idx):
         """
