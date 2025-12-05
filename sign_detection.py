@@ -3,12 +3,11 @@ import numpy as np
 
 
 import model_definition
+from game_controls import SubwayController 
 
 import torch
-import torch.nn as nn
-import torchvision.models as models
 
-classes = ["0", "1", "2", "3", "4", "5", "metal", "tel"]
+controller = SubwayController()
 
 # --- Initialisation de la caméra ---
 cap = cv2.VideoCapture(0)  # 0 = webcam par défaut
@@ -28,7 +27,7 @@ while True:
         break
 
     # Action pour quitter
-    if cv2.waitKey(1) & 0xFF == 27:
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 
@@ -128,7 +127,7 @@ while True:
     for_model = for_model.unsqueeze(0).unsqueeze(0) 
 
     predicted_class_idx = model_definition.predict_class(for_model)
-    predicted_class = "class detected : " + classes[predicted_class_idx]
+    predicted_class = "class detected : " + controller.execute(predicted_class_idx)
 
     cv2.putText(
         mask_hand,                   
