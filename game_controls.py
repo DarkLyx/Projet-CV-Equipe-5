@@ -7,7 +7,6 @@ class SubwayController:
         self.last_action_idx = None
         self.last_hoverboard_time = 0
         
-        # Classes : ["0", "1", "2", "3", "4", "5", "metal", "tel"]
         self.MAPPING = {
             0: None,        # Classe "0" -> Neutre (rien ne se passe)
             1: Key.left,      # Classe "1" -> gauche
@@ -36,15 +35,13 @@ class SubwayController:
             return action_name
 
         
-        if action_key == Key.space:
-            current_time = time.time()
-            if class_idx != self.last_action_idx and (current_time - self.last_hoverboard_time > 1.0):
-                print(f"ACTION: {action_name} (HOVERBOARD)")
-                self.keyboard.press(action_key)
-                self.keyboard.release(action_key)
-                self.last_hoverboard_time = current_time
-        elif class_idx != self.last_action_idx:
-            print(f"ACTION: {action_name}")
+        # if action_key == Key.space:
+        #     current_time = time.time()
+        #     if class_idx != self.last_action_idx and (current_time - self.last_hoverboard_time > 1.0):
+        #         self.keyboard.press(action_key)
+        #         self.keyboard.release(action_key)
+        #         self.last_hoverboard_time = current_time
+        if class_idx != self.last_action_idx:
             self.keyboard.press(action_key)
             self.keyboard.release(action_key)
 

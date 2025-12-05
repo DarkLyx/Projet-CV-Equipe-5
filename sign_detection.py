@@ -1,13 +1,14 @@
 import cv2
 import numpy as np
 
-
+import skin_segmentation
 import model_definition
 from game_controls import SubwayController 
 
 import torch
 
 controller = SubwayController()
+model = model_definition.GesturePredictor()
 
 # --- Initialisation de la caméra ---
 cap = cv2.VideoCapture(0)  # 0 = webcam par défaut
@@ -17,7 +18,7 @@ if not cap.isOpened():
     print("Erreur : impossible d'accéder à la caméra.")
     exit()
 
-print("Appuyez sur 'Echap' pour quitter.")
+print("Appuyez sur 'q' pour quitter.")
 
 # --- Boucle de capture ---
 while True:
@@ -31,53 +32,16 @@ while True:
         break
 
 
-
     frame = cv2.resize(frame, (640, 480))
-
-
     # Lisse la donnee avec un filtre bilateral
     blurred = cv2.bilateralFilter(frame, d=15, sigmaColor=75, sigmaSpace=75)
 
-    
-    # # segmentation de contenu en fonction de la couleur de peau en utilisant HSV #
-    # hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-    
-    # lower_skin_hsv = np.array([0, 20, 70], dtype=np.uint8)
-    # upper_skin_hsv = np.array([20, 255, 255], dtype=np.uint8)
-    # mask_hsv = cv2.inRange(hsv, lower_skin_hsv, upper_skin_hsv)
-    # #----------------------------------------------------------------------------#
-
-    # # segmentation de contenu en fonction de la couleur de peau en utilisant HSV #
-    # ycrcb = cv2.cvtColor(blurred, cv2.COLOR_BGR2YCrCb)
-    
-    # lower_skin_ycrcb = np.array([0, 133, 77], dtype=np.uint8)
-    # upper_skin_ycrcb = np.array([255, 173, 127], dtype=np.uint8)
-    # mask_ycrcb = cv2.inRange(ycrcb, lower_skin_ycrcb, upper_skin_ycrcb)
-    # #----------------------------------------------------------------------------#
-
-
-
-    # SEGMENTATION RGB
-    img_rgb = cv2.cvtColor(blurred, cv2.COLOR_BGR2RGB)
-
-    R = img_rgb[:, :, 0]
-    G = img_rgb[:, :, 1]
-    B = img_rgb[:, :, 2]
-
-    cond1 = (R > 95) & (G > 40) & (B > 20)
-    cond2 = (np.max(img_rgb, axis=2) - np.min(img_rgb, axis=2)) > 15
-    cond3 = (np.abs(R - G) > 15) & (R > G) & (R > B)
-
-    mask_rgb = cond1 & cond2 & cond3
-    mask_rgb = mask_rgb.astype(np.uint8) * 255
-
-
-
 
     # Fusion les deux resultats pour supprimer les donnees aberrantes et garder seulement ce qui est similaire entre les deux images
+    # mask_hsv = skin_segmentation.hsv_seg(blurred)
+    # mask_ycrcb = skin_segmentation.ycrcb_seg(blurred)
     #mask = cv2.bitwise_and(mask_hsv, mask_ycrcb)
-    mask = mask_rgb
-
+    mask = skin_segmentation.rgb_seg(blurred)
 
 
 
@@ -93,7 +57,6 @@ while True:
     # utilisation d'openCV pour determiner les different contour des elements sur la scene (surement la main et un visage ou autre)
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    result = frame.copy()
     mask_hand = np.zeros_like(frame, dtype=np.uint8)
 
     if len(contours) > 0:
@@ -126,7 +89,7 @@ while True:
     for_model = torch.from_numpy(for_model).to(dtype=torch.float32) / 255.0
     for_model = for_model.unsqueeze(0).unsqueeze(0) 
 
-    predicted_class_idx = model_definition.predict_class(for_model)
+    predicted_class_idx = model.predict(for_model)
     predicted_class = "class detected : " + controller.execute(predicted_class_idx)
 
     cv2.putText(
@@ -142,7 +105,7 @@ while True:
 
 
     #PRESENTATION DES RESULTATS
-    cv2.imshow("Main isolee en couleur", result)
+    cv2.imshow("Main isolee en couleur", frame)
     cv2.imshow("Main isolee en noir et blanc", mask_hand)
 
 
